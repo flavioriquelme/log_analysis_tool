@@ -1,6 +1,6 @@
 # Log Analysis Tool
 
-Log Analysis Tool Project for Udacity Full Stack Nanodegree
+Log Analysis Tool Project (python, postgreSQL) for Udacity Full Stack Nanodegree
 
 ## Getting Started
 
