@@ -5,45 +5,32 @@
 This log analysis tool written in python connects to a PostgreSQL
 database to collect data for analysis.
 
-Prerequisites:
-Two DB views DATE_VIEWS and DATA_ERRORS:
-
-CREATE VIEW DATE_VIEWS AS
-SELECT to_char(time, 'DD-Mon-YYYY') as DATE, count(*) as VIEWS
- FROM log
-GROUP BY DATE
-ORDER BY DATE;
-
-CREATE VIEW DATE_ERRORS AS
-SELECT to_char(time, 'DD-Mon-YYYY') as DATE, count(*) as ERRORS
- FROM log
-WHERE status !='200 OK'
-GROUP BY DATE
-ORDER BY DATE;
-
-Example on how to run this DB Log Analysis Tool:
-    $ python loganalysis.py
+How to run this DB Log Analysis Tool:
+$ python loganalysis.py
 
 """
 import datetime
 import psycopg2
 
 
-def db_connect():
+def db_connect(db_name="news"):
     # Connect to the Database
-    return psycopg2.connect("dbname=news")
-
+    try:
+        db = psycopg2.connect("dbname={}".format(db_name))
+        cursor = db.cursor()
+        return db, cursor
+    except:
+        print("Problems to connect to DB")
 
 def now():
     # Return current timestamp
     return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
-def report_one(db):
+def report_one(cursor):
     """report_one() collects data from DB to answer the question:
        1. What are the most popular three articles of all time?
     """
-    cursor = db.cursor()
     cursor.execute("SELECT a.title, count(l.id) AS PAGE_VIEWS \
                      FROM articles a, log l \
                     WHERE substring(l.path, 10) = a.slug \
@@ -53,11 +40,10 @@ def report_one(db):
     return cursor.fetchall()
 
 
-def report_two(db):
+def report_two(cursor):
     """report_two() collects data from DB to answer the question:
        2. Who are the most popular article authors of all time?
     """
-    cursor = db.cursor()
     cursor.execute("SELECT au.name, count(l.id) AS PAGE_VIEWS \
                       FROM authors au, articles a, log l \
                      WHERE au.id = a.author \
@@ -67,11 +53,10 @@ def report_two(db):
     return cursor.fetchall()
 
 
-def report_three(db):
+def report_three(cursor):
     """report_three() collects data from DB to answer the question:
        3. On which days did more than 1% of requests lead to errors?
     """
-    cursor = db.cursor()
     cursor.execute("SELECT e.date, e.errors, v.views \
                      FROM date_errors e, date_views v \
                     WHERE e.date = v.date \
@@ -79,7 +64,7 @@ def report_three(db):
     return cursor.fetchall()
 
 
-def generate_report(db):
+def generate_report(cursor):
     """Create output report."""
     filename = "log_analysis_report_%s" %\
                datetime.datetime.now().\
@@ -92,7 +77,7 @@ def generate_report(db):
         # Report number one
         f.write("== Most popular three articles of all time ==\n")
         i = 0
-        for row in report_one(db):
+        for row in report_one(cursor):
             i += 1
             f.write("%s) \"%s\", with %s page views." %
                     (i, str(row[0]), str(row[1])))
@@ -102,7 +87,7 @@ def generate_report(db):
         # Report number two
         f.write("== Most popular article authors of all time ==\n")
         i = 0
-        for row in report_two(db):
+        for row in report_two(cursor):
             i += 1
             f.write("%s) %s, with %s page views." %
                     (i, str(row[0]), str(row[1])))
@@ -112,7 +97,7 @@ def generate_report(db):
         # Report number three
         f.write("== Days with more than 1% of HTTP request errors ==\n")
         i = 0
-        for row in report_three(db):
+        for row in report_three(cursor):
             i += 1
             f.write("%s) %s, with %s HTTP request errors," %
                     (i, str(row[0]), str(row[1])))
@@ -126,8 +111,8 @@ def generate_report(db):
 if __name__ == '__main__':
     """Main loganalysis_db.py was called"""
     print "Log Analysis Tool Started at " + now()
-    db = db_connect()
+    db, cursor = db_connect()
     print "Generating Report..."
-    generate_report(db)
+    generate_report(cursor)
     db.close()
     print "Log Analysis Tool Finished at " + now()
