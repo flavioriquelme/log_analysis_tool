@@ -22,6 +22,7 @@ def db_connect(db_name="news"):
     except:
         print("Problems to connect to DB")
 
+
 def now():
     # Return current timestamp
     return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
